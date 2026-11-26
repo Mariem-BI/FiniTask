@@ -16,6 +16,7 @@
 
 <body class="bg-light">
 
+    <!-- Barre de navigation -->
     <nav class="navbar bg-white shadow-sm">
         <div class="container">
             <span class="navbar-brand text-primary fw-bold">
@@ -33,7 +34,7 @@
     <main class="container py-5">
 
         <div class="card shadow-sm mx-auto"
-             style="max-width: 600px;">
+             style="max-width: 650px;">
 
             <div class="card-body p-4">
 
@@ -41,36 +42,90 @@
                     Mon profil
                 </h2>
 
+                <!-- Messages -->
                 <div id="message"
-                     class="alert alert-danger d-none"
-                     role="alert">
-                </div>
+                     class="alert d-none"
+                     role="alert"></div>
 
+                <!-- Affichage du profil -->
                 <div id="profil" class="d-none">
 
-                    <div class="mb-3">
+                    <p>
                         <strong>Nom :</strong>
                         <span id="nom"></span>
-                    </div>
+                    </p>
 
-                    <div class="mb-3">
+                    <p>
                         <strong>Prénom :</strong>
                         <span id="prenom"></span>
-                    </div>
+                    </p>
 
-                    <div class="mb-3">
+                    <p>
                         <strong>Adresse e-mail :</strong>
                         <span id="email"></span>
+                    </p>
+
+                    <p>
+                        <strong>Rôle :</strong>
+                        <span id="role"
+                              class="badge text-bg-primary"></span>
+                    </p>
+
+                    <button id="editButton"
+                            class="btn btn-primary mt-3">
+                        Modifier mon profil
+                    </button>
+
+                </div>
+
+                <!-- Formulaire de modification -->
+                <form id="editForm" class="d-none">
+
+                    <div class="mb-3">
+                        <label for="editNom" class="form-label">
+                            Nom
+                        </label>
+                        <input type="text"
+                               id="editNom"
+                               class="form-control"
+                               required>
                     </div>
 
                     <div class="mb-3">
-                        <strong>Rôle :</strong>
-                        <span id="role"
-                              class="badge text-bg-primary">
-                        </span>
+                        <label for="editPrenom" class="form-label">
+                            Prénom
+                        </label>
+                        <input type="text"
+                               id="editPrenom"
+                               class="form-control"
+                               required>
                     </div>
 
-                </div>
+                    <div class="mb-3">
+                        <label for="editEmail" class="form-label">
+                            Adresse e-mail
+                        </label>
+                        <input type="email"
+                               id="editEmail"
+                               class="form-control"
+                               required>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit"
+                                id="saveButton"
+                                class="btn btn-success">
+                            Enregistrer les modifications
+                        </button>
+
+                        <button type="button"
+                                id="cancelButton"
+                                class="btn btn-secondary">
+                            Annuler
+                        </button>
+                    </div>
+
+                </form>
 
                 <p id="chargement"
                    class="text-center text-muted">
@@ -84,60 +139,74 @@
 
     <script>
         const profil = document.getElementById("profil");
+        const editForm = document.getElementById("editForm");
         const message = document.getElementById("message");
         const chargement = document.getElementById("chargement");
-        const logoutButton =
-            document.getElementById("logoutButton");
 
+        const editButton = document.getElementById("editButton");
+        const saveButton = document.getElementById("saveButton");
+        const cancelButton = document.getElementById("cancelButton");
+        const logoutButton = document.getElementById("logoutButton");
+
+        let utilisateurConnecte = null;
         let csrfToken = null;
         let csrfHeader = null;
 
+        function afficherMessage(texte, type) {
+            message.textContent = texte;
+            message.className = "alert alert-" + type;
+        }
+
+        function afficherProfil(utilisateur) {
+            utilisateurConnecte = utilisateur;
+
+            document.getElementById("nom").textContent =
+                utilisateur.nom;
+
+            document.getElementById("prenom").textContent =
+                utilisateur.prenom;
+
+            document.getElementById("email").textContent =
+                utilisateur.email;
+
+            document.getElementById("role").textContent =
+                utilisateur.role;
+
+            profil.classList.remove("d-none");
+            editForm.classList.add("d-none");
+        }
+
+        // Charger les informations de l'utilisateur connecté
         async function chargerProfil() {
             try {
                 const response = await fetch("/api/auth/me", {
-                    credentials: "same-origin",
-                    redirect: "manual"
+                    credentials: "same-origin"
                 });
 
-                if (response.status === 401 ||
-                    response.status === 302 ||
-                    response.type === "opaqueredirect") {
-
+                if (response.redirected ||
+                    response.status === 401) {
                     window.location.replace("/login.html");
                     return;
                 }
 
                 if (!response.ok) {
                     throw new Error(
-                        "Impossible de récupérer votre profil."
+                        "Impossible de charger votre profil."
                     );
                 }
 
                 const utilisateur = await response.json();
-
-                document.getElementById("nom").textContent =
-                    utilisateur.nom;
-
-                document.getElementById("prenom").textContent =
-                    utilisateur.prenom;
-
-                document.getElementById("email").textContent =
-                    utilisateur.email;
-
-                document.getElementById("role").textContent =
-                    utilisateur.role;
-
-                profil.classList.remove("d-none");
+                afficherProfil(utilisateur);
 
             } catch (error) {
-                message.textContent = error.message;
-                message.classList.remove("d-none");
+                afficherMessage(error.message, "danger");
 
             } finally {
                 chargement.classList.add("d-none");
             }
         }
 
+        // Charger le jeton CSRF
         async function chargerCsrf() {
             try {
                 const response = await fetch("/api/csrf", {
@@ -145,7 +214,7 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error("CSRF indisponible");
+                    throw new Error("Jeton CSRF indisponible");
                 }
 
                 const data = await response.json();
@@ -156,14 +225,131 @@
                 logoutButton.disabled = false;
 
             } catch (error) {
-                console.error(
-                    "Impossible de préparer la déconnexion.",
-                    error
+                console.error(error);
+                afficherMessage(
+                    "Impossible de préparer les actions sécurisées.",
+                    "danger"
                 );
             }
         }
 
+        // Afficher le formulaire de modification
+        editButton.addEventListener("click", () => {
+
+            if (!csrfToken) {
+                afficherMessage(
+                    "Veuillez patienter : sécurité en cours de chargement.",
+                    "warning"
+                );
+                return;
+            }
+
+            document.getElementById("editNom").value =
+                utilisateurConnecte.nom;
+
+            document.getElementById("editPrenom").value =
+                utilisateurConnecte.prenom;
+
+            document.getElementById("editEmail").value =
+                utilisateurConnecte.email;
+
+            profil.classList.add("d-none");
+            editForm.classList.remove("d-none");
+            message.classList.add("d-none");
+        });
+
+        // Annuler la modification
+        cancelButton.addEventListener("click", () => {
+            editForm.classList.add("d-none");
+            profil.classList.remove("d-none");
+            message.classList.add("d-none");
+        });
+
+        // Enregistrer les modifications
+        editForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            if (!csrfToken) {
+                afficherMessage(
+                    "Jeton de sécurité indisponible.",
+                    "danger"
+                );
+                return;
+            }
+
+            const nom =
+                document.getElementById("editNom").value.trim();
+
+            const prenom =
+                document.getElementById("editPrenom").value.trim();
+
+            const email =
+                document.getElementById("editEmail").value.trim();
+
+            const ancienEmail = utilisateurConnecte.email;
+
+            saveButton.disabled = true;
+
+            try {
+                const response = await fetch("/api/auth/me", {
+                    method: "PUT",
+                    credentials: "same-origin",
+                    headers: {
+                        "Content-Type": "application/json",
+                        [csrfHeader]: csrfToken
+                    },
+                    body: JSON.stringify({
+                        nom: nom,
+                        prenom: prenom,
+                        email: email
+                    })
+                });
+
+                if (response.redirected) {
+                    window.location.replace("/login.html");
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.message ||
+                        "Erreur lors de la modification."
+                    );
+                }
+
+                afficherProfil(data);
+
+                // Si l'e-mail change, le backend ferme la session
+                if (ancienEmail.toLowerCase() !==
+                    data.email.toLowerCase()) {
+
+                    alert(
+                        "Votre adresse e-mail a changé. " +
+                        "Veuillez vous reconnecter."
+                    );
+
+                    window.location.replace("/login.html");
+                    return;
+                }
+
+                afficherMessage(
+                    "Profil modifié avec succès !",
+                    "success"
+                );
+
+            } catch (error) {
+                afficherMessage(error.message, "danger");
+
+            } finally {
+                saveButton.disabled = false;
+            }
+        });
+
+        // Déconnexion
         logoutButton.addEventListener("click", async () => {
+
             if (!csrfToken) {
                 return;
             }
@@ -176,26 +362,20 @@
                     credentials: "same-origin",
                     headers: {
                         [csrfHeader]: csrfToken
-                    },
-                    redirect: "manual"
+                    }
                 });
 
-                if (response.ok ||
-                    response.status === 302 ||
-                    response.type === "opaqueredirect") {
-
+                if (response.ok || response.redirected) {
                     window.location.replace(
                         "/login.html?logout"
                     );
-
                     return;
                 }
 
                 throw new Error("Échec de la déconnexion.");
 
             } catch (error) {
-                message.textContent = error.message;
-                message.classList.remove("d-none");
+                afficherMessage(error.message, "danger");
                 logoutButton.disabled = false;
             }
         });
