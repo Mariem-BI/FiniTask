@@ -19,7 +19,17 @@ public class SecurityConfig {
         http
             .authorizeHttpRequests(auth -> auth
 
-                // Inscription accessible sans connexion
+                // Pages accessibles sans connexion
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/login",
+                    "/login.html",
+                    "/register.html",
+                    "/css/**",
+                    "/js/**"
+                ).permitAll()
+
+                // Inscription publique
                 .requestMatchers(
                     HttpMethod.POST,
                     "/api/auth/register"
@@ -31,28 +41,36 @@ public class SecurityConfig {
                     "/api/csrf"
                 ).permitAll()
 
-                // Pages de connexion et erreurs
-                .requestMatchers(
-                    "/login",
-                    "/error"
-                ).permitAll()
+                // Page d'erreur
+                .requestMatchers("/error").permitAll()
 
-                // Gestion des utilisateurs réservée à l'admin
+                // CRUD réservé à l'administrateur
                 .requestMatchers("/api/users/**")
                     .hasRole("ADMINISTRATEUR")
 
-                // Toutes les autres requêtes nécessitent
-                // une authentification
+                // Profil et autres pages protégés
                 .anyRequest().authenticated()
             )
 
-            // Formulaire de connexion Spring Security
-            .formLogin(form -> form.permitAll())
+            // Connexion avec la page FiniTask
+            .formLogin(form -> form
+                .loginPage("/login.html")
+                .loginProcessingUrl("/login")
+
+                // Redirection vers la page de profil
+                .defaultSuccessUrl("/profil.html", true)
+
+                .failureUrl("/login.html?error")
+                .permitAll()
+            )
 
             // Déconnexion
-            .logout(logout -> logout.permitAll());
+            .logout(logout -> logout
+                .logoutSuccessUrl("/login.html?logout")
+                .permitAll()
+            );
 
-        // CSRF reste activé par défaut
+        // La protection CSRF reste activée
         return http.build();
     }
 }

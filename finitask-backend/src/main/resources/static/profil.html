@@ -1,0 +1,208 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Mon profil - FiniTask</title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet">
+</head>
+
+<body class="bg-light">
+
+    <nav class="navbar bg-white shadow-sm">
+        <div class="container">
+            <span class="navbar-brand text-primary fw-bold">
+                FiniTask
+            </span>
+
+            <button id="logoutButton"
+                    class="btn btn-outline-danger"
+                    disabled>
+                Se déconnecter
+            </button>
+        </div>
+    </nav>
+
+    <main class="container py-5">
+
+        <div class="card shadow-sm mx-auto"
+             style="max-width: 600px;">
+
+            <div class="card-body p-4">
+
+                <h2 class="text-center text-primary mb-4">
+                    Mon profil
+                </h2>
+
+                <div id="message"
+                     class="alert alert-danger d-none"
+                     role="alert">
+                </div>
+
+                <div id="profil" class="d-none">
+
+                    <div class="mb-3">
+                        <strong>Nom :</strong>
+                        <span id="nom"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong>Prénom :</strong>
+                        <span id="prenom"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong>Adresse e-mail :</strong>
+                        <span id="email"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong>Rôle :</strong>
+                        <span id="role"
+                              class="badge text-bg-primary">
+                        </span>
+                    </div>
+
+                </div>
+
+                <p id="chargement"
+                   class="text-center text-muted">
+                    Chargement de votre profil...
+                </p>
+
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        const profil = document.getElementById("profil");
+        const message = document.getElementById("message");
+        const chargement = document.getElementById("chargement");
+        const logoutButton =
+            document.getElementById("logoutButton");
+
+        let csrfToken = null;
+        let csrfHeader = null;
+
+        async function chargerProfil() {
+            try {
+                const response = await fetch("/api/auth/me", {
+                    credentials: "same-origin",
+                    redirect: "manual"
+                });
+
+                if (response.status === 401 ||
+                    response.status === 302 ||
+                    response.type === "opaqueredirect") {
+
+                    window.location.replace("/login.html");
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(
+                        "Impossible de récupérer votre profil."
+                    );
+                }
+
+                const utilisateur = await response.json();
+
+                document.getElementById("nom").textContent =
+                    utilisateur.nom;
+
+                document.getElementById("prenom").textContent =
+                    utilisateur.prenom;
+
+                document.getElementById("email").textContent =
+                    utilisateur.email;
+
+                document.getElementById("role").textContent =
+                    utilisateur.role;
+
+                profil.classList.remove("d-none");
+
+            } catch (error) {
+                message.textContent = error.message;
+                message.classList.remove("d-none");
+
+            } finally {
+                chargement.classList.add("d-none");
+            }
+        }
+
+        async function chargerCsrf() {
+            try {
+                const response = await fetch("/api/csrf", {
+                    credentials: "same-origin"
+                });
+
+                if (!response.ok) {
+                    throw new Error("CSRF indisponible");
+                }
+
+                const data = await response.json();
+
+                csrfToken = data.token;
+                csrfHeader = data.headerName;
+
+                logoutButton.disabled = false;
+
+            } catch (error) {
+                console.error(
+                    "Impossible de préparer la déconnexion.",
+                    error
+                );
+            }
+        }
+
+        logoutButton.addEventListener("click", async () => {
+            if (!csrfToken) {
+                return;
+            }
+
+            logoutButton.disabled = true;
+
+            try {
+                const response = await fetch("/logout", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        [csrfHeader]: csrfToken
+                    },
+                    redirect: "manual"
+                });
+
+                if (response.ok ||
+                    response.status === 302 ||
+                    response.type === "opaqueredirect") {
+
+                    window.location.replace(
+                        "/login.html?logout"
+                    );
+
+                    return;
+                }
+
+                throw new Error("Échec de la déconnexion.");
+
+            } catch (error) {
+                message.textContent = error.message;
+                message.classList.remove("d-none");
+                logoutButton.disabled = false;
+            }
+        });
+
+        chargerProfil();
+        chargerCsrf();
+    </script>
+
+</body>
+</html>
